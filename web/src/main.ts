@@ -124,6 +124,30 @@ async function doFollow(u: User, on: boolean, set: (v: boolean) => void) {
   }
 }
 
+// ---------- install (PWA) ----------
+// Chrome fires beforeinstallprompt only when the page is installable (HTTPS, manifest, service worker).
+type InstallPrompt = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
+let installPrompt: InstallPrompt | null = null;
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e as InstallPrompt;
+});
+addEventListener('appinstalled', () => {
+  installPrompt = null;
+  toast('litex installed');
+});
+const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
+async function install() {
+  if (installPrompt) {
+    const p = installPrompt;
+    installPrompt = null; // a prompt can only be used once
+    await p.prompt();
+    return;
+  }
+  if (!isSecureContext) return toast('Open litex over HTTPS to install');
+  toast("Use your browser's menu → Install app / Add to Home screen");
+}
+
 function openMenu() {
   const u = me();
   const themes: Theme[] = ['system', 'light', 'dim', 'dark'];
@@ -157,6 +181,7 @@ function openMenu() {
           toast('Applies to newly loaded posts');
         },
       },
+      ...(standalone() ? [] : [{ label: 'Install app', icon: 'download', run: install }]),
       { label: 'Log out', icon: 'logout', danger: true, run: () => post('/logout').finally(() => location.reload()) },
     ],
     u ? `@${u.sn}` : undefined,
@@ -297,6 +322,6 @@ async function boot() {
 
 boot();
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
+if ('serviceWorker' in navigator && isSecureContext) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
