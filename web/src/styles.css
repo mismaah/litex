@@ -470,6 +470,15 @@ body.bars-hidden .top {
   stroke: none;
   margin-left: 3px;
 }
+/* poster waiting for its video source */
+.mc.loading .mp {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+}
+.mc.loading .mp .i {
+  visibility: hidden;
+}
 .mp.sm {
   width: 32px;
   height: 32px;

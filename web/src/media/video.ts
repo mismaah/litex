@@ -1,6 +1,9 @@
 // Video & GIF handling: posters by default, one playing video at a time,
 // GIFs only play while on screen, and every <video> is unloaded when it leaves the DOM.
-import { tweets } from '../store';
+import type { Media } from '../../../shared/types';
+import { get } from '../api';
+import { intern, tweets } from '../store';
+import { toast } from '../util';
 
 let active: HTMLVideoElement | null = null;
 
@@ -50,10 +53,39 @@ export function unmountMedia(root: HTMLElement) {
   }
 }
 
+/** The media behind a poster cell, also when the cell belongs to a quote no longer in the store. */
+function mediaOf(cell: HTMLElement): Media | undefined {
+  const tid = cell.dataset.tid!;
+  let t = tweets.get(tid);
+  if (!t) {
+    const outer = cell.closest<HTMLElement>('article[data-tid]')?.dataset.tid;
+    const q = outer ? tweets.get(outer)?.quote : undefined;
+    if (q?.id === tid) t = q;
+  }
+  return t?.media?.[Number(cell.dataset.i)];
+}
+
 export function playVideo(cell: HTMLElement) {
-  const t = tweets.get(cell.dataset.tid!);
-  const m = t?.media?.[Number(cell.dataset.i)];
-  if (!m?.src) return;
+  const m = mediaOf(cell);
+  if (m?.src) return start(cell, m);
+  // Missing locally (e.g. a quoted post that came without its video): load the post, then play.
+  if (cell.classList.contains('loading')) return;
+  cell.classList.add('loading');
+  get(`/tweet/${cell.dataset.tid}`)
+    .then((page) => intern(page))
+    .catch(() => {})
+    .finally(() => {
+      cell.classList.remove('loading');
+      if (!cell.isConnected) return;
+      const m = mediaOf(cell);
+      // Autoplay may be refused now the tap is in the past; the controls are there to start it.
+      if (m?.src) start(cell, m);
+      else toast("Couldn't load this video.");
+    });
+}
+
+function start(cell: HTMLElement, m: Media) {
+  if (!m.src) return;
   if (active) {
     playIo.unobserve(active);
     const old = active;

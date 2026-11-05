@@ -37,3 +37,54 @@ func TestIsoTime(t *testing.T) {
 		}
 	}
 }
+
+// A quoted post's video keeps its playable source, also when the quote is wrapped in
+// TweetWithVisibilityResults and only has the media under extended_entities.
+func TestQuotedVideoSrc(t *testing.T) {
+	user := func(sn string) any {
+		return map[string]any{"rest_id": "u-" + sn, "core": map[string]any{"screen_name": sn, "name": sn}}
+	}
+	video := map[string]any{
+		"type":            "video",
+		"media_url_https": "https://pbs.twimg.com/ext_tw_video_thumb/1/pu/img/a.jpg",
+		"original_info":   map[string]any{"width": 1280.0, "height": 720.0},
+		"video_info": map[string]any{
+			"duration_millis": 69000.0,
+			"variants": []any{
+				map[string]any{"content_type": "application/x-mpegURL", "url": "https://video.twimg.com/a.m3u8"},
+				map[string]any{"content_type": "video/mp4", "bitrate": 256000.0, "url": "https://video.twimg.com/low.mp4"},
+				map[string]any{"content_type": "video/mp4", "bitrate": 832000.0, "url": "https://video.twimg.com/mid.mp4"},
+				map[string]any{"content_type": "video/mp4", "bitrate": 2176000.0, "url": "https://video.twimg.com/high.mp4"},
+			},
+		},
+	}
+	quoted := map[string]any{
+		"__typename": "TweetWithVisibilityResults",
+		"tweet": map[string]any{
+			"rest_id": "2",
+			"core":    map[string]any{"user_results": map[string]any{"result": user("quoted")}},
+			"legacy": map[string]any{
+				"full_text":         "clip",
+				"entities":          map[string]any{},
+				"extended_entities": map[string]any{"media": []any{video}},
+			},
+		},
+	}
+	outer := map[string]any{
+		"rest_id":              "1",
+		"core":                 map[string]any{"user_results": map[string]any{"result": user("outer")}},
+		"quoted_status_result": map[string]any{"result": quoted},
+		"legacy":               map[string]any{"full_text": "look", "entities": map[string]any{}, "is_quote_status": true},
+	}
+	tw := ParseTweet(outer, 0)
+	if tw == nil || tw.Quote == nil {
+		t.Fatalf("quote not parsed: %+v", tw)
+	}
+	if len(tw.Quote.Media) != 1 {
+		t.Fatalf("quote media: %+v", tw.Quote.Media)
+	}
+	m := tw.Quote.Media[0]
+	if m.Type != "video" || m.Src != "https://video.twimg.com/mid.mp4" || m.Dur != 69000 {
+		t.Errorf("got %+v", m)
+	}
+}
