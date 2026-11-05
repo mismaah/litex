@@ -1,0 +1,20 @@
+{
+  "name": "litex",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,web \"go run ./server\" \"vite\"",
+    "build": "vite build && go build -trimpath -ldflags=\"-s -w\" -o dist/ ./server",
+    "start": "node scripts/start.mjs",
+    "test": "go test ./server/...",
+    "typecheck": "tsc --noEmit",
+    "xtid:fixture": "node scripts/xtid-fixture.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "x-client-transaction-id": "0.3.2"
+  }
+}
