@@ -145,7 +145,41 @@ async function install() {
     return;
   }
   if (!isSecureContext) return toast('Open litex over HTTPS to install');
-  toast("Use your browser's menu → Install app / Add to Home screen");
+  const problems = await installProblems();
+  if (!problems.length) return toast("Use your browser's menu → Install app / Add to Home screen");
+  alert(`litex can't be installed from ${location.host}:\n\n- ${problems.join('\n- ')}`);
+}
+
+// Checks what Chrome checks, the way Chrome fetches it (the manifest request sends no cookies by
+// default), so a proxy login page or a missing file shows up as a readable reason.
+async function installProblems(): Promise<string[]> {
+  const out: string[] = [];
+  const check = async (url: string, wantType: string, creds: RequestCredentials) => {
+    try {
+      const r = await fetch(url, { credentials: creds, cache: 'no-store' });
+      const type = r.headers.get('content-type') || '';
+      if (r.redirected) out.push(`${url} redirects to ${new URL(r.url).host}${new URL(r.url).pathname} (a login proxy in front of litex?)`);
+      else if (!r.ok) out.push(`${url} returns HTTP ${r.status}`);
+      else if (!type.includes(wantType)) out.push(`${url} is served as "${type}" instead of ${wantType}`);
+      else return r;
+    } catch (e) {
+      out.push(`${url} can't be fetched (${(e as Error).message})`);
+    }
+    return null;
+  };
+  const res = await check('/manifest.webmanifest', 'json', 'omit');
+  if (res) {
+    try {
+      const m = (await res.json()) as { icons?: { src: string }[] };
+      for (const ic of m.icons || []) await check(ic.src, 'image/', 'omit');
+    } catch {
+      out.push('/manifest.webmanifest is not valid JSON');
+    }
+  }
+  const reg = await navigator.serviceWorker?.getRegistration().catch(() => undefined);
+  if (!reg) out.push('the service worker is not registered');
+  else if (!reg.active) out.push('the service worker is not active yet (reload the page)');
+  return out;
 }
 
 function openMenu() {
