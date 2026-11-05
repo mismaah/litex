@@ -1,7 +1,10 @@
 package x
 
 import (
+	"encoding/json"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -86,5 +89,76 @@ func TestQuotedVideoSrc(t *testing.T) {
 	m := tw.Quote.Media[0]
 	if m.Type != "video" || m.Src != "https://video.twimg.com/mid.mp4" || m.Dur != 69000 {
 		t.Errorf("got %+v", m)
+	}
+}
+
+// X embeds Grok's translation in each post (trimmed from a real TweetDetail response).
+func TestGrokTranslation(t *testing.T) {
+	raw, err := os.ReadFile("testdata/tweetdetail_translated.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]*Tweet{}
+	for _, it := range ParseTimeline(data).Items {
+		if it.Type == "tweet" {
+			byID[it.Tweet.ID] = it.Tweet
+		}
+	}
+	tr := func(id string) *Translation {
+		tw := byID[id]
+		if tw == nil {
+			t.Fatalf("tweet %s missing", id)
+		}
+		return tw.Tr
+	}
+	text := func(s string) []Seg { return []Seg{{T: "text", V: s}} }
+
+	// Translated reply: the translation leaves out the hidden reply mention.
+	if got := tr("2118375077355937830"); got == nil || got.Src != "tr" || !reflect.DeepEqual(got.Text, text("The legendary animation shown in every free period in middle school")) {
+		t.Errorf("reply: %+v", got)
+	}
+	// is_translatable false, but a translation is available.
+	if got := tr("2118381067010703755"); got == nil || !reflect.DeepEqual(got.Text, text("everyone's like that")) {
+		t.Errorf("not translatable: %+v", got)
+	}
+	// is_available false: no translation.
+	if got := tr("2118399859183288671"); got != nil {
+		t.Errorf("unavailable: %+v", got)
+	}
+	// The quoting post and the quoted post are both translated.
+	main := byID["2118322069301547066"]
+	if main == nil || main.Tr == nil || main.Tr.Src != "tr" {
+		t.Fatalf("main: %+v", main)
+	}
+	if main.Quote == nil || main.Quote.Tr == nil || main.Quote.Tr.Src != "es" || !reflect.DeepEqual(main.Quote.Tr.Text, text("Restart as a way of life.")) {
+		t.Errorf("quote: %+v", main.Quote)
+	}
+	// Serialized as "tr".
+	b, _ := json.Marshal(main)
+	if !strings.Contains(string(b), `"tr":{"text":[`) {
+		t.Errorf("json: %s", b)
+	}
+}
+
+func TestFeatureFlagsGrok(t *testing.T) {
+	names := []string{"responsive_web_grok_show_grok_translated_post", "responsive_web_grok_analysis_button_from_backend", "articles_preview_enabled", "responsive_web_grok_annotations_enabled"}
+	sw := map[string]any{
+		"responsive_web_grok_show_grok_translated_post":    true,
+		"responsive_web_grok_analysis_button_from_backend": true,
+		"articles_preview_enabled":                         true,
+	}
+	b, _ := json.Marshal(featureFlags(names, sw))
+	want := `{"responsive_web_grok_show_grok_translated_post":true,"responsive_web_grok_analysis_button_from_backend":false,"articles_preview_enabled":true,"responsive_web_grok_annotations_enabled":false}`
+	if string(b) != want {
+		t.Errorf("got %s\nwant %s", b, want)
+	}
+	// An allowed flag still follows x.com's switch.
+	b, _ = json.Marshal(featureFlags(names[:1], map[string]any{}))
+	if string(b) != `{"responsive_web_grok_show_grok_translated_post":false}` {
+		t.Errorf("unset switch: %s", b)
 	}
 }

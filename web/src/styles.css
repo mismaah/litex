@@ -405,6 +405,17 @@ body.bars-hidden .top {
 .smore {
   color: var(--acc);
 }
+.trn {
+  display: block;
+  margin-top: 4px;
+  padding: 2px 0;
+  color: var(--mut);
+  font-size: 13px;
+  text-align: left;
+}
+.trn span {
+  color: var(--acc);
+}
 
 /* media */
 .md {

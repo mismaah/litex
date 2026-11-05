@@ -65,6 +65,11 @@ type Card struct {
 	Closed  *bool    `json:"closed,omitempty"`
 }
 
+type Translation struct {
+	Text []Seg  `json:"text"`
+	Src  string `json:"src"`
+}
+
 type Tweet struct {
 	ID         string   `json:"id"`
 	User       *User    `json:"user"`
@@ -85,6 +90,8 @@ type Tweet struct {
 	Rted       bool     `json:"rted,omitempty"`
 	Bookmarked bool     `json:"bookmarked,omitempty"`
 	Lang       string   `json:"lang,omitempty"`
+	// Tr is X's (Grok) translation of the visible text into the account's language.
+	Tr *Translation `json:"tr,omitempty"`
 
 	// Quote is three-state: not a quote (absent), quote unavailable (null), or the quoted post.
 	Quote   *Tweet `json:"-"`

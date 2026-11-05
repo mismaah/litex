@@ -48,6 +48,10 @@ var (
 	grokRe      = regexp.MustCompile(`(?i)grok`)
 )
 
+// Grok flags are forced off, except these (they follow x.com's own switch value).
+// show_grok_translated_post makes X embed the translation of foreign-language posts.
+var grokAllowed = map[string]bool{"responsive_web_grok_show_grok_translated_post": true}
+
 var (
 	metaMu         sync.Mutex
 	cache          *metaCache
@@ -287,16 +291,22 @@ func Op(name string) (string, *OrderedBools, *OrderedBools, error) {
 	if !ok {
 		return "", nil, nil, fmt.Errorf("unknown X operation %s", name)
 	}
-	features := &OrderedBools{}
-	for _, f := range m.Features {
-		v, isBool := cache.Switches[f].(bool)
-		features.Set(f, !grokRe.MatchString(f) && isBool && v)
-	}
+	features := featureFlags(m.Features, cache.Switches)
 	toggles := &OrderedBools{}
 	for _, t := range m.Toggles {
 		toggles.Set(t, false)
 	}
 	return m.QueryID, features, toggles, nil
+}
+
+// featureFlags sets each feature to x.com's switch value; Grok ones are off unless allowed.
+func featureFlags(names []string, switches map[string]any) *OrderedBools {
+	features := &OrderedBools{}
+	for _, f := range names {
+		v, isBool := switches[f].(bool)
+		features.Set(f, (grokAllowed[f] || !grokRe.MatchString(f)) && isBool && v)
+	}
+	return features
 }
 
 // TransactionID makes an x-client-transaction-id for method + URL path.

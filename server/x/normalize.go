@@ -530,6 +530,12 @@ func ParseTweet(raw any, depth int) *Tweet {
 	if s := sv(l, "lang"); s != "" {
 		t.Lang = s
 	}
+	// is_translatable can be false on posts that do carry a translation; is_available is what counts.
+	if tr := g(r, "grok_translated_post_with_availability"); truthy(g(tr, "is_available")) {
+		if d := g(tr, "data"); sv(d, "translation") != "" {
+			t.Tr = &Translation{Text: Segments(sv(d, "translation"), objOr(g(d, "entities")), nil), Src: sv(d, "source_language")}
+		}
+	}
 	if truthy(l["is_quote_status"]) && depth == 0 {
 		q := ParseTweet(g(r, "quoted_status_result", "result"), 1)
 		t.IsQuote, t.Quote = true, q

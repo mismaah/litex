@@ -1,11 +1,37 @@
 import type { Item, Tweet, User } from '../../../shared/types';
 import { badge, mi } from '../icons';
-import { touchTweet } from '../store';
+import { showOriginal, touchTweet } from '../store';
 import { ago, esc, fullDate, num } from '../util';
 import { cardHtml, img, mediaHtml } from './media';
 import { segsHtml, segsLen } from './text';
 
 export type TweetItem = Extract<Item, { type: 'tweet' }> & { lt?: boolean };
+
+let langNames: Intl.DisplayNames | undefined;
+function langName(code: string) {
+  try {
+    langNames ||= new Intl.DisplayNames([navigator.language, 'en'], { type: 'language' });
+    return langNames.of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
+/** Post text; X's translation by default when there is one, with a toggle back to the original. */
+export function textHtml(t: Tweet, cls = '') {
+  const orig = !t.tr || showOriginal.has(t.id);
+  const segs = orig ? t.text : t.tr!.text;
+  if (!segs.length) return '';
+  const tx = `<div class="tx${cls}">${segsHtml(segs)}</div>`;
+  if (!t.tr) return tx;
+  const label = orig ? '<span>Show translation</span>' : `Translated from ${esc(langName(t.tr.src))} · <span>Show original</span>`;
+  return `<div class="txw" data-trid="${t.id}" data-cls="${cls}">${tx}<button class="trn" data-act="orig">${label}</button></div>`;
+}
+
+/** Re-render a post's text everywhere it is on screen (after toggling the translation). */
+export function refreshText(t: Tweet) {
+  for (const el of document.querySelectorAll<HTMLElement>(`.txw[data-trid="${t.id}"]`)) el.outerHTML = textHtml(t, el.dataset.cls);
+}
 
 export const statusPath = (t: Tweet) => `/${t.user.sn}/status/${t.id}`;
 
@@ -38,7 +64,7 @@ export function quoteHtml(q: Tweet | null | undefined) {
   const long = segsLen(q.text) > 280;
   return `<div class="qt" data-href="${statusPath(q)}" data-tid="${q.id}">
 <div class="hd"><img class="qa" src="${esc(q.user.avatar)}" alt="" width="20" height="20" loading="lazy">${nameHtml(q.user)}<span class="sn">@${esc(q.user.sn)}</span><span class="dt">· ${ago(q.time)}</span></div>
-${q.text.length ? `<div class="tx${long ? ' clamp' : ''}">${segsHtml(q.text)}</div>` : ''}
+${textHtml(q, long ? ' clamp' : '')}
 ${mediaHtml(q, true)}
 </div>`;
 }
@@ -68,7 +94,7 @@ export function tweetHtml(it: TweetItem, hideQuoteOf?: string): string {
 ${ctxHtml(it)}<div class="row">${avatarHtml(t.user)}<div class="bd">
 <div class="hd">${nameHtml(t.user)}<span class="sn">@${esc(t.user.sn)}</span><a class="dt" href="${statusPath(t)}">· ${ago(t.time)}</a></div>
 ${t.replyTo && !it.lt ? `<div class="rpl">Replying to <a href="/${esc(t.replyTo)}">@${esc(t.replyTo)}</a></div>` : ''}
-${t.text.length ? `<div class="tx${long ? ' clamp' : ''}">${segsHtml(t.text)}</div>${long ? `<a class="smore" href="${statusPath(t)}">Show more</a>` : ''}` : ''}
+${textHtml(t, long ? ' clamp' : '')}${long && t.text.length ? `<a class="smore" href="${statusPath(t)}">Show more</a>` : ''}
 ${mediaHtml(t)}${cardHtml(t.card)}${t.quote && t.quote.id === hideQuoteOf ? '' : quoteHtml(t.quote)}
 ${actionsHtml(t)}
 </div></div></article>`;
@@ -79,7 +105,7 @@ function focalHtml(it: TweetItem): string {
   return `<article class="tw focal${it.lt ? ' lt' : ''}" data-tid="${t.id}">
 ${ctxHtml(it)}<div class="fh">${avatarHtml(t.user, 44)}<div class="fn"><a href="/${esc(t.user.sn)}">${nameHtml(t.user)}</a><span class="sn">@${esc(t.user.sn)}</span></div></div>
 ${t.replyTo ? `<div class="rpl">Replying to <a href="/${esc(t.replyTo)}">@${esc(t.replyTo)}</a></div>` : ''}
-${t.text.length ? `<div class="tx">${segsHtml(t.text)}</div>` : ''}
+${textHtml(t)}
 ${mediaHtml(t)}${cardHtml(t.card)}${quoteHtml(t.quote)}
 <div class="fd">${fullDate(t.time)}${t.views ? ` · <b>${num(t.views)}</b> Views` : ''}</div>
 ${actionsHtml(t)}

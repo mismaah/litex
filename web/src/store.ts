@@ -52,6 +52,9 @@ export function intern(page: Page): Page {
   return page;
 }
 
+/** Translated posts the user switched back to the original text. */
+export const showOriginal = new Set<string>();
+
 // ---- prefs ----
 export type Theme = 'system' | 'light' | 'dim' | 'dark';
 export const prefs = {

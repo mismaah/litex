@@ -97,6 +97,10 @@ func mockTweet(depth int, at int64) *x.Tweet {
 	v := float64(rint(900000))
 	t.Views = &v
 	t.Liked = rnd() < 0.1
+	if rnd() < 0.1 {
+		t.Lang = pickStr([]string{"tr", "pt", "ja", "de"})
+		t.Tr = &x.Translation{Text: append([]x.Seg{{T: "text", V: "[translated] "}}, mockText()...), Src: t.Lang}
+	}
 	heights := []float64{675, 900, 1200, 1500}
 	switch r := rnd(); {
 	case r < 0.25:
