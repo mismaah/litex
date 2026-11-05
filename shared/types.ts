@@ -71,6 +71,7 @@ export interface Tweet {
   rted?: boolean;
   bookmarked?: boolean;
   lang?: string;
+  tr?: { text: Seg[]; src: string }; // X's translation of the visible text
   source?: string;
 }
 

@@ -5,9 +5,9 @@ import { openCompose } from './compose';
 import { icon } from './icons';
 import { playVideo } from './media/video';
 import { openSheet, openViewer } from './overlays';
-import { refreshActions } from './render/tweet';
+import { refreshActions, refreshText } from './render/tweet';
 import { goBack, navigate, route, startRouter, type View } from './router';
-import { me, prefs, savePref, setMe, tweets, users, type Theme } from './store';
+import { me, prefs, savePref, setMe, showOriginal, tweets, users, type Theme } from './store';
 import { esc, h, quietUntil, toast } from './util';
 import { exploreView, searchView } from './views/explore';
 import { homeView } from './views/home';
@@ -256,6 +256,10 @@ function onAction(act: string, el: HTMLElement) {
       return t && openCompose({ replyTo: t });
     case 'share':
       return t && share(t);
+    case 'orig':
+      if (!t) return;
+      if (!showOriginal.delete(t.id)) showOriginal.add(t.id);
+      return refreshText(t);
   }
 }
 

@@ -1,0 +1,37 @@
+{"data":{"threaded_conversation_with_injections_v2":{"instructions":[{"type":"TimelineAddEntries","entries":[
+{"entryId":"tweet-2118322069301547066","content":{"entryType":"TimelineTimelineItem","__typename":"TimelineTimelineItem","itemContent":{"itemType":"TimelineTweet","__typename":"TimelineTweet","tweet_results":{"result":{
+  "__typename":"Tweet","rest_id":"2118322069301547066",
+  "core":{"user_results":{"result":{"__typename":"User","rest_id":"1147982818603143170","core":{"name":"Karahan","screen_name":"PresidentofFKC"},"avatar":{"image_url":"https://pbs.twimg.com/profile_images/a_normal.jpg"}}}},
+  "grok_translated_post_with_availability":{"data":{"associated_data":{},"destination_language":"en","entities":{"hashtags":[],"symbols":[],"urls":[],"user_mentions":[]},"source_language":"tr","translation":"Americans' efforts to present an animation that describes themselves as if it were the entire humanity"},"is_available":true},
+  "is_translatable":true,
+  "legacy":{"created_at":"Thu Nov 05 12:38:32 +0000 2026","display_text_range":[0,87],"entities":{},"full_text":"Amerikalıların kendini anlatan bir animasyonu sanki tüm insanlıkmış gibi sunma çabaları","id_str":"2118322069301547066","is_quote_status":true,"lang":"tr","quoted_status_id_str":"2118024473828090332","quoted_status_permalink":{"expanded":"https://twitter.com/Wikingenieria/status/2118024473828090332","url":"https://t.co/knY0ywEYmx"}},
+  "quoted_status_result":{"result":{
+    "__typename":"Tweet","rest_id":"2118024473828090332",
+    "core":{"user_results":{"result":{"__typename":"User","rest_id":"3169820435","core":{"name":"Wikingenieria","screen_name":"Wikingenieria"},"avatar":{"image_url":"https://pbs.twimg.com/profile_images/b_normal.jpg"}}}},
+    "grok_translated_post_with_availability":{"data":{"destination_language":"en","entities":{"hashtags":[],"symbols":[],"urls":[],"user_mentions":[]},"source_language":"es","translation":"Restart as a way of life."},"is_available":true},
+    "is_translatable":true,
+    "legacy":{"created_at":"Wed Nov 04 16:56:00 +0000 2026","entities":{},"full_text":"Reiniciar como modo de vida.","id_str":"2118024473828090332","is_quote_status":false,"lang":"es"}
+  }}
+}}}}},
+{"entryId":"conversationthread-2118375077355937830","content":{"entryType":"TimelineTimelineModule","__typename":"TimelineTimelineModule","displayType":"VerticalConversation","items":[{"entryId":"conversationthread-2118375077355937830-tweet-2118375077355937830","item":{"itemContent":{"itemType":"TimelineTweet","__typename":"TimelineTweet","tweet_results":{"result":{
+  "__typename":"Tweet","rest_id":"2118375077355937830",
+  "core":{"user_results":{"result":{"__typename":"User","rest_id":"1548783517097725954","core":{"name":"Suler","screen_name":"hergele6666"},"avatar":{"image_url":"https://pbs.twimg.com/profile_images/c_normal.jpg"}}}},
+  "grok_translated_post_with_availability":{"data":{"destination_language":"en","entities":{"hashtags":[],"symbols":[],"urls":[],"user_mentions":[]},"source_language":"tr","translation":"The legendary animation shown in every free period in middle school"},"is_available":true},
+  "is_translatable":true,
+  "legacy":{"conversation_id_str":"2118322069301547066","created_at":"Thu Nov 05 16:09:10 +0000 2026","display_text_range":[16,70],"entities":{"user_mentions":[{"id_str":"1147982818603143170","indices":[0,15],"name":"Karahan","screen_name":"PresidentofFKC"}]},"full_text":"@PresidentofFKC Ortaokulda her boş derste izletilen efsanevi animasyon","id_str":"2118375077355937830","in_reply_to_screen_name":"PresidentofFKC","in_reply_to_status_id_str":"2118322069301547066","is_quote_status":false,"lang":"tr"}
+}}}}}]}},
+{"entryId":"conversationthread-2118381067010703755","content":{"entryType":"TimelineTimelineModule","__typename":"TimelineTimelineModule","displayType":"VerticalConversation","items":[{"entryId":"conversationthread-2118381067010703755-tweet-2118381067010703755","item":{"itemContent":{"itemType":"TimelineTweet","__typename":"TimelineTweet","tweet_results":{"result":{
+  "__typename":"Tweet","rest_id":"2118381067010703755",
+  "core":{"user_results":{"result":{"__typename":"User","rest_id":"2036785760930844673","core":{"name":"M","screen_name":"oeeelonmusk"},"avatar":{"image_url":"https://pbs.twimg.com/profile_images/d_normal.jpg"}}}},
+  "grok_translated_post_with_availability":{"data":{"destination_language":"en","entities":{"hashtags":[],"symbols":[],"urls":[],"user_mentions":[]},"source_language":"tr","translation":"everyone's like that"},"is_available":true},
+  "is_translatable":false,
+  "legacy":{"conversation_id_str":"2118322069301547066","created_at":"Thu Nov 05 16:32:58 +0000 2026","display_text_range":[16,35],"entities":{"user_mentions":[{"id_str":"1147982818603143170","indices":[0,15],"name":"Karahan","screen_name":"PresidentofFKC"}]},"full_text":"@PresidentofFKC herkes böyle ki amk","id_str":"2118381067010703755","in_reply_to_screen_name":"PresidentofFKC","in_reply_to_status_id_str":"2118322069301547066","is_quote_status":false,"lang":"tr"}
+}}}}}]}},
+{"entryId":"conversationthread-2118399859183288671","content":{"entryType":"TimelineTimelineModule","__typename":"TimelineTimelineModule","displayType":"VerticalConversation","items":[{"entryId":"conversationthread-2118399859183288671-tweet-2118399859183288671","item":{"itemContent":{"itemType":"TimelineTweet","__typename":"TimelineTweet","tweet_results":{"result":{
+  "__typename":"Tweet","rest_id":"2118399859183288671",
+  "core":{"user_results":{"result":{"__typename":"User","rest_id":"1477762122712899584","core":{"name":"Lunar","screen_name":"007_lunar"},"avatar":{"image_url":"https://pbs.twimg.com/profile_images/e_normal.jpg"}}}},
+  "grok_translated_post_with_availability":{"is_available":false},
+  "is_translatable":false,
+  "legacy":{"conversation_id_str":"2118322069301547066","created_at":"Thu Nov 05 17:47:39 +0000 2026","display_text_range":[16,86],"entities":{"user_mentions":[{"id_str":"1147982818603143170","indices":[0,15],"name":"Karahan","screen_name":"PresidentofFKC"}]},"full_text":"@PresidentofFKC \"Americans\" famously Europeans don't, and never have, exploited nature","id_str":"2118399859183288671","in_reply_to_screen_name":"PresidentofFKC","in_reply_to_status_id_str":"2118322069301547066","is_quote_status":false,"lang":"en"}
+}}}}}]}}
+]}]}}}
