@@ -38,6 +38,8 @@ export function putUser(u: User): User {
 /** Re-register an object when it is rendered, so anything on screen is always findable. */
 export function touchTweet(t: Tweet) {
   if (tweets.get(t.id) !== t) lru(tweets, t.id, t);
+  // The embedded quote is on screen too (its media cells look it up by id).
+  if (t.quote && tweets.get(t.quote.id) !== t.quote) lru(tweets, t.quote.id, t.quote);
 }
 
 export function intern(page: Page): Page {
