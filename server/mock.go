@@ -157,6 +157,7 @@ func mockBackend() backend {
 		delay()
 		return mockPage(mockTweets(20, "home"), cursor), nil
 	}
+	homeTL := func(tab, cursor string, _ x.HomeOpts) (x.Page, error) { return home(tab, cursor) }
 	userTimeline := func(_, tab, cursor string) (x.Page, error) {
 		defer lock()()
 		delay()
@@ -189,7 +190,7 @@ func mockBackend() backend {
 	}
 	return backend{
 		Me:   func() (*x.User, error) { u := meUser; return &u, nil },
-		Home: home,
+		Home: homeTL,
 		TweetDetail: func(id, cursor string) (x.Page, error) {
 			defer lock()()
 			delay()

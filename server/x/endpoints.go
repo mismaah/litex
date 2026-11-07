@@ -28,16 +28,35 @@ func timeline(op string, v Vars, method string) (Page, error) {
 
 // ---------- Home ----------
 
-func Home(tab, cursor string) (Page, error) {
+// HomeOpts carries what x.com's web client tells the For you ranker about the session.
+type HomeOpts struct {
+	// Seen lists post IDs the user already saw, newest first; X uses it to avoid serving them again.
+	Seen []string
+	// Ctx is the requestContext for a first page: "launch" (default) or "ptr" (pull to refresh).
+	Ctx string
+}
+
+func homeVars(cursor string, o HomeOpts) Vars {
+	v := Vars{"count": 20, "includePromotedContent": false, "latestControlAvailable": true, "withCommunity": false}
+	if cursor == "" {
+		ctx := o.Ctx
+		if ctx != "ptr" {
+			ctx = "launch"
+		}
+		v["requestContext"] = ctx
+	}
+	if len(o.Seen) > 0 {
+		v["seenTweetIds"] = o.Seen
+	}
+	return withCursor(v, cursor)
+}
+
+func Home(tab, cursor string, o HomeOpts) (Page, error) {
 	name := "HomeTimeline"
 	if tab == "following" {
 		name = "HomeLatestTimeline"
 	}
-	v := Vars{"count": 20, "includePromotedContent": false, "latestControlAvailable": true, "withCommunity": false}
-	if cursor == "" {
-		v["requestContext"] = "launch"
-	}
-	return timeline(name, withCursor(v, cursor), "POST")
+	return timeline(name, homeVars(cursor, o), "POST")
 }
 
 // ---------- Tweets ----------

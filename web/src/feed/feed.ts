@@ -25,6 +25,8 @@ export interface FeedOpts {
   /** Render the whole first page immediately (tweet view needs the focal post laid out). */
   eagerFirst?: boolean;
   onPage?(page: Page, first: boolean): void;
+  /** Called once per post when at least half of it has been on screen. */
+  onSeen?(id: string): void;
 }
 
 export class Feed {
@@ -46,12 +48,26 @@ export class Feed {
   private raf = 0;
   private footIo: IntersectionObserver;
   private active = true;
+  private seenIo?: IntersectionObserver;
 
   constructor(private o: FeedOpts) {
     this.el.append(this.list, this.foot);
     // ~2 screens of rendered content above and below the viewport.
     this.io = new IntersectionObserver((e) => this.onChunks(e), { rootMargin: '200% 0px' });
     this.footIo = new IntersectionObserver((e) => e[0]?.isIntersecting && this.more(), { rootMargin: '150% 0px' });
+    if (o.onSeen) {
+      const onSeen = o.onSeen;
+      this.seenIo = new IntersectionObserver(
+        (es) => {
+          for (const e of es)
+            if (e.isIntersecting) {
+              this.seenIo!.unobserve(e.target);
+              onSeen((e.target as HTMLElement).dataset.tid!);
+            }
+        },
+        { threshold: 0.5 },
+      );
+    }
     this.foot.addEventListener('click', (e) => {
       if ((e.target as Element).closest('[data-retry]')) this.more();
     });
@@ -174,10 +190,24 @@ export class Feed {
 
   private hydrate(ch: Chunk) {
     if (ch.live || !ch.items) return;
+    this.unwatch(ch.el);
     ch.el.innerHTML = ch.items.map((it) => this.o.render(it)).join('');
     ch.el.style.height = '';
     ch.live = true;
     mountMedia(ch.el);
+    this.watch(ch.el);
+  }
+
+  private posts(el: Element) {
+    return el.querySelectorAll(':scope > article[data-tid]');
+  }
+
+  private watch(el: Element) {
+    if (this.seenIo && this.active) for (const a of this.posts(el)) this.seenIo.observe(a);
+  }
+
+  private unwatch(el: Element) {
+    if (this.seenIo) for (const a of this.posts(el)) this.seenIo.unobserve(a);
   }
 
   private onChunks(entries: IntersectionObserverEntry[]) {
@@ -191,6 +221,7 @@ export class Feed {
         this.queue.delete(ch);
         if (ch.live && e.boundingClientRect.height > 0) {
           unmountMedia(ch.el);
+          this.unwatch(ch.el);
           ch.el.style.height = e.boundingClientRect.height + 'px';
           ch.el.textContent = '';
           ch.live = false;
@@ -229,18 +260,23 @@ export class Feed {
     this.raf = 0;
     this.io.disconnect();
     this.footIo.disconnect();
+    this.seenIo?.disconnect();
   }
 
   resume() {
     if (this.active) return;
     this.active = true;
-    for (const ch of this.chunks) this.io.observe(ch.el);
+    for (const ch of this.chunks) {
+      this.io.observe(ch.el);
+      if (ch.live) this.watch(ch.el);
+    }
     this.footIo.observe(this.foot);
   }
 
   reset() {
     for (const ch of this.chunks) unmountMedia(ch.el);
     this.io.disconnect();
+    this.seenIo?.disconnect();
     this.queue.clear();
     this.chunks = [];
     this.list.textContent = '';
