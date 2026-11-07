@@ -32,7 +32,7 @@ var (
 // backend is the set of operations the HTTP layer needs; real (X) or mock.
 type backend struct {
 	Me               func() (*x.User, error)
-	Home             func(tab, cursor string) (x.Page, error)
+	Home             func(tab, cursor string, o x.HomeOpts) (x.Page, error)
 	TweetDetail      func(id, cursor string) (x.Page, error)
 	Quotes           func(id, cursor string) (x.Page, error)
 	UserByScreenName func(sn string) (*x.User, error)
@@ -195,6 +195,25 @@ func oneOf(v string, allowed []string, d string) string {
 	return d
 }
 
+// maxSeen caps the seen-post list forwarded to X (x.com sends about this many).
+const maxSeen = 100
+
+// seenIDs parses a comma-separated list of post IDs, keeping only valid unique ones.
+func seenIDs(s string) []string {
+	var out []string
+	have := map[string]bool{}
+	for _, id := range strings.Split(s, ",") {
+		if len(out) >= maxSeen {
+			break
+		}
+		if idRe.MatchString(id) && !have[id] {
+			have[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 func apiRoutes() http.Handler {
 	mux := http.NewServeMux()
 	q := func(r *http.Request, k string) string { return r.URL.Query().Get(k) }
@@ -215,11 +234,13 @@ func apiRoutes() http.Handler {
 	handle("GET /api/home", func(r *http.Request) (any, error) {
 		tab := oneOf(q(r, "tab"), []string{"foryou", "following"}, "foryou")
 		cursor := q(r, "cursor")
+		o := x.HomeOpts{Seen: seenIDs(q(r, "seen")), Ctx: oneOf(q(r, "ctx"), []string{"launch", "ptr"}, "launch")}
 		// Home is never cached on the first page so refresh always gets new posts.
+		// Later pages are keyed by cursor only: the seen list just shapes what X returns next.
 		if cursor == "" {
-			return api.Home(tab, "")
+			return api.Home(tab, "", o)
 		}
-		return cached("home:"+tab+":"+cursor, func() (x.Page, error) { return api.Home(tab, cursor) })
+		return cached("home:"+tab+":"+cursor, func() (x.Page, error) { return api.Home(tab, cursor, o) })
 	})
 	handle("GET /api/tweet/{id}", func(r *http.Request) (any, error) {
 		id := r.PathValue("id")

@@ -4,7 +4,7 @@ import { Feed } from '../feed/feed';
 import { icon } from '../icons';
 import { itemHtml } from '../render/cells';
 import type { View } from '../router';
-import { me } from '../store';
+import { markSeen, me, seenParam } from '../store';
 import { esc, h } from '../util';
 import { TabFeeds, onTab, shell } from './base';
 
@@ -33,7 +33,16 @@ export function homeView(): View {
   s.body.append(ptr);
 
   const pending = new Map<string, Page>();
-  const tf = new TabFeeds(s.body, (tab) => new Feed({ load: (cursor) => get('/home', { tab, cursor }), render: itemHtml, dedupe: true }));
+  const tf = new TabFeeds(
+    s.body,
+    (tab) =>
+      new Feed({
+        load: (cursor) => get('/home', { tab, cursor, seen: seenParam(tab) }),
+        render: itemHtml,
+        dedupe: true,
+        onSeen: (id) => markSeen(tab, id),
+      }),
+  );
   tf.select('foryou');
   onTab(s.tabs!, (tab) => {
     pill.hidden = true;
@@ -45,7 +54,8 @@ export function homeView(): View {
     const feed = tf.feed;
     if (!feed) return;
     try {
-      const page = await get('/home', { tab });
+      // Explicit refreshes tell X it's a pull to refresh (x.com sends "ptr"); background polls stay "launch".
+      const page = await get('/home', { tab, seen: seenParam(tab), ctx: apply ? 'ptr' : undefined });
       if (tab !== tf.cur) return;
       if (apply) {
         feed.prepend(page.items);

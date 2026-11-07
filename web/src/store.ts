@@ -70,3 +70,37 @@ export function savePref<K extends keyof typeof prefs>(k: K, v: (typeof prefs)[K
 let meUser: User | null = null;
 export const me = () => meUser;
 export const setMe = (u: User) => (meUser = putUser(u));
+
+// ---- seen home posts ----
+// Posts the user has actually had on screen, newest last, per home tab. Sent to X as
+// seenTweetIds (like x.com does) so the ranker stops serving them again, even after a reload.
+const SEEN_MAX = 200;
+const SEEN_SEND = 100;
+const seenLists = new Map<string, string[]>();
+let seenSave = 0;
+
+function seenList(tab: string) {
+  let l = seenLists.get(tab);
+  if (!l) seenLists.set(tab, (l = getPref<string[]>('seen:' + tab, [])));
+  return l;
+}
+
+export function markSeen(tab: string, id: string) {
+  const l = seenList(tab);
+  const i = l.indexOf(id);
+  if (i >= 0) l.splice(i, 1);
+  l.push(id);
+  if (l.length > SEEN_MAX) l.splice(0, l.length - SEEN_MAX);
+  // Batch writes: posts scroll into view in bursts.
+  if (!seenSave)
+    seenSave = window.setTimeout(() => {
+      seenSave = 0;
+      for (const [t, v] of seenLists) setPref('seen:' + t, v);
+    }, 1000);
+}
+
+/** Most recently seen post IDs, newest first, as the comma list /api/home expects. */
+export function seenParam(tab: string): string | undefined {
+  const l = seenList(tab);
+  return l.length ? l.slice(-SEEN_SEND).reverse().join(',') : undefined;
+}
