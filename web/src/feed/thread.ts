@@ -13,20 +13,27 @@ import { esc, num, quietScroll } from '../util';
 
 type Kind = 'r' | 'q';
 
-interface Branch {
-  items: TweetItem[];
-  loading: boolean;
-  error?: string;
+/** One source of children: the post's replies or its quotes, paged separately. */
+interface Src {
   cursor?: string;
   done?: boolean;
-  /** Filled from a parent's response (a chain), not from this post's own request yet. */
-  partial?: boolean;
+  /** Last request failed; Retry asks this source again. */
+  failed?: boolean;
 }
+
+/** A child post; `q` marks a quote (rendered without re-embedding the parent). */
+type Kid = TweetItem & { q?: boolean };
 
 interface State {
   open: boolean;
-  r?: Branch;
-  q?: Branch;
+  /** Replies and quotes together, in display order (each loaded batch sorted by likes). */
+  kids: Kid[];
+  r: Src;
+  q: Src;
+  /** Replies so far came only from a parent's response (a chain), not this post's own request. */
+  partial?: boolean;
+  loading?: boolean;
+  error?: string;
 }
 
 /** Deepest nesting level rendered inline; deeper posts link to their page. */
@@ -38,21 +45,18 @@ const expanded = new Map<string, State>();
 
 const state = (id: string) => {
   let s = expanded.get(id);
-  if (!s) expanded.set(id, (s = { open: false }));
+  if (!s) expanded.set(id, (s = { open: false, kids: [], r: {}, q: {} }));
   return s;
 };
-const branch = (id: string, kind: Kind) => (state(id)[kind] ||= { items: [], loading: false });
 
-const asChild = (t: Tweet): TweetItem => ({ k: 'c' + t.id, type: 'tweet', tweet: t });
-
-/** Add children to a branch, skipping ones already there. Returns how many were new. */
-function addKids(b: Branch, kids: Tweet[]) {
-  const have = new Set(b.items.map((i) => i.tweet.id));
+/** Append children, skipping ones already shown. Returns how many were new. */
+function addKids(s: State, kids: Tweet[], q = false) {
+  const have = new Set(s.kids.map((i) => i.tweet.id));
   let n = 0;
   for (const t of kids)
     if (!have.has(t.id)) {
       have.add(t.id);
-      b.items.push(asChild(t));
+      s.kids.push({ k: 'c' + t.id, type: 'tweet', tweet: t, q: q || undefined });
       n++;
     }
   return n;
@@ -61,12 +65,11 @@ function addKids(b: Branch, kids: Tweet[]) {
 /** Pre-open a post's replies with posts that came from someone else's response. */
 function preload(id: string, kids: Tweet[]) {
   const s = state(id);
-  const b = branch(id, 'r');
-  if (!b.items.length && !b.loading) {
+  if (!s.kids.length && !s.loading) {
     s.open = true;
-    b.partial = true;
+    s.partial = true;
   }
-  if (b.partial) addKids(b, kids);
+  if (s.partial) addKids(s, kids);
 }
 
 /**
@@ -131,30 +134,60 @@ function repliesOf(id: string, page: Page) {
   return nest(id, chain, (i) => (lineBefore[i] && i > 0 ? chain[i - 1].id : id));
 }
 
-async function load(id: string, kind: Kind) {
-  const b = branch(id, kind);
-  if (b.loading) return;
-  b.loading = true;
-  b.error = undefined;
-  refresh(id);
-  const cursor = b.partial ? undefined : b.cursor;
-  try {
-    const page = intern(await get(kind === 'r' ? `/tweet/${id}` : `/tweet/${id}/quotes`, { cursor }));
-    const kids = kind === 'r' ? repliesOf(id, page) : page.items.flatMap((i) => (i.type === 'tweet' && i.tweet.id !== id ? [i.tweet] : []));
-    const fresh = addKids(b, kids);
-    b.done = !page.bottom || page.bottom === cursor || (!fresh && !b.partial);
-    b.cursor = page.bottom;
-    b.partial = false;
-  } catch (e) {
-    b.error = e instanceof ApiError ? e.message : 'Something went wrong.';
-  } finally {
-    b.loading = false;
-    refresh(id);
-  }
-}
+const byLikes = (a: Tweet, b: Tweet) => b.likes - a.likes;
 
 function count(t: Tweet, kind: Kind) {
-  return Math.max(kind === 'r' ? t.replies : t.quotes, expanded.get(t.id)?.[kind]?.items.length || 0);
+  const have = expanded.get(t.id)?.kids.filter((k) => !!k.q === (kind === 'q')).length || 0;
+  return Math.max(kind === 'r' ? t.replies : t.quotes, have);
+}
+
+/** Sources that can still bring children (kinds with a zero count never cost a request). */
+function pending(t: Tweet, s: State): Kind[] {
+  const out: Kind[] = [];
+  if (t.replies && (s.partial ? count(t, 'r') > s.kids.filter((k) => !k.q).length || !s.r.done : !s.r.done)) out.push('r');
+  if (t.quotes && !s.q.done) out.push('q');
+  return out;
+}
+
+/**
+ * Load the next page of replies and quotes together, then append the new posts sorted by
+ * likes. Posts already on screen keep their place, so nothing jumps while reading.
+ */
+async function load(id: string) {
+  const t = tweets.get(id);
+  const s = state(id);
+  if (!t || s.loading) return;
+  const failed = (['r', 'q'] as const).filter((k) => s[k].failed);
+  const kinds = failed.length ? failed : pending(t, s);
+  if (!kinds.length) return;
+  s.loading = true;
+  s.error = undefined;
+  refresh(id);
+  const batch: { t: Tweet; q: boolean }[] = [];
+  await Promise.all(
+    kinds.map(async (kind) => {
+      const src = s[kind];
+      const cursor = kind === 'r' && s.partial ? undefined : src.cursor;
+      try {
+        const page = intern(await get(kind === 'r' ? `/tweet/${id}` : `/tweet/${id}/quotes`, { cursor }));
+        const got = kind === 'r' ? repliesOf(id, page) : page.items.flatMap((i) => (i.type === 'tweet' && i.tweet.id !== id ? [i.tweet] : []));
+        const known = new Set([...s.kids.map((k) => k.tweet.id), ...batch.map((b) => b.t.id)]);
+        const fresh = got.filter((x) => !known.has(x.id));
+        for (const x of fresh) batch.push({ t: x, q: kind === 'q' });
+        src.done = !page.bottom || page.bottom === cursor || (!fresh.length && !(kind === 'r' && s.partial));
+        src.cursor = page.bottom;
+        src.failed = false;
+        if (kind === 'r') s.partial = false;
+      } catch (e) {
+        src.failed = true;
+        s.error = e instanceof ApiError ? e.message : 'Something went wrong.';
+      }
+    }),
+  );
+  batch.sort((a, b) => byLikes(a.t, b.t));
+  for (const b of batch) addKids(s, [b.t], b.q);
+  s.loading = false;
+  refresh(id);
 }
 
 /** The post a thread control belongs to: the expander bar's previous sibling. */
@@ -173,14 +206,13 @@ function reveal(post: HTMLElement | null, always = false) {
 
 /**
  * Handles `data-act="thread"`: toggle a post's children (replies and quotes together), or
- * `data-more` + `data-kind` to load more / retry, `data-close` to collapse, `data-top` to
+ * `data-more` to load more / retry, `data-close` to collapse, `data-top` to
  * jump back to the post.
  */
 export function threadAction(el: HTMLElement) {
   const id = el.dataset.id!;
-  const t = tweets.get(id);
   const s = state(id);
-  if (el.dataset.more !== undefined) return load(id, el.dataset.kind as Kind);
+  if (el.dataset.more !== undefined) return load(id);
   if (el.dataset.top !== undefined) return reveal(postOf(el), true);
   const post = postOf(el);
   if (s.open || el.dataset.close !== undefined) {
@@ -189,12 +221,9 @@ export function threadAction(el: HTMLElement) {
     return reveal(post);
   }
   s.open = true;
+  // One tap loads replies and quotes together; already-loaded children just reappear.
+  if (!s.kids.length) load(id);
   refresh(id);
-  // One tap loads both kinds of children; kinds with a zero count cost no request.
-  for (const kind of ['r', 'q'] as const) {
-    const b = s[kind];
-    if (t && count(t, kind) && (!b || (!b.items.length && !b.done && !b.loading && !b.error))) load(id, kind);
-  }
 }
 
 const plural = (n: number, one: string) => `${num(n)} ${n === 1 ? one : one === 'reply' ? 'replies' : one + 's'}`;
@@ -224,26 +253,20 @@ function barHtml(t: Tweet, depth: number) {
   return `${head}<button class="tb" data-act="thread" data-id="${t.id}" aria-expanded="false">${mi('plus')}<span>${label}</span></button></div>`;
 }
 
-function branchHtml(t: Tweet, kind: Kind, depth: number, nest: number): string {
-  const b = expanded.get(t.id)?.[kind];
-  if (!b) return '';
-  const kids = b.items
-    .map((it) => (kind === 'q' ? `<div class="kqb">${mi('quotes')}Quote</div>` : '') + nodeHtml(kind === 'q' ? tweetHtml(it, t.id) : tweetHtml(it), it.tweet, depth + 1, nest + 1))
-    .join('');
-  const noun = kind === 'r' ? 'replies' : 'quotes';
-  const more = `data-act="thread" data-kind="${kind}" data-id="${t.id}" data-more`;
-  let foot = '';
-  if (b.loading) foot = `<div class="spin sm"></div>`;
-  else if (b.error) foot = `<div class="kerr">${esc(b.error)} <button ${more}>Retry</button></div>`;
-  else if (b.partial ? count(t, kind) > b.items.length : !b.done) foot = `<button class="kmore" ${more}>${b.partial ? `Show all ${noun}` : `Load more ${noun}`}</button>`;
-  else if (!b.items.length) foot = `<div class="kerr">No ${noun} to show.</div>`;
-  return `<div class="k${kind}">${kids}${foot}</div>`;
-}
-
 function kidsInner(t: Tweet, depth: number, nest: number): string {
-  if (depth >= MAX_DEPTH || nest >= MAX_NEST || !expanded.get(t.id)?.open) return '';
+  const s = expanded.get(t.id);
+  if (depth >= MAX_DEPTH || nest >= MAX_NEST || !s?.open) return '';
+  const kids = s.kids
+    .map((it) => (it.q ? `<div class="kqb">${mi('quotes')}Quote</div>` : '') + nodeHtml(it.q ? tweetHtml(it, t.id) : tweetHtml(it), it.tweet, depth + 1, nest + 1))
+    .join('');
+  const more = `data-act="thread" data-id="${t.id}" data-more`;
+  let foot = '';
+  if (s.loading) foot = `<div class="spin sm"></div>`;
+  else if (s.error) foot = `<div class="kerr">${esc(s.error)} <button ${more}>Retry</button></div>`;
+  else if (pending(t, s).length) foot = `<button class="kmore" ${more}>${s.partial ? 'Show all replies and quotes' : 'Load more'}</button>`;
+  else if (!s.kids.length) foot = `<div class="kerr">Nothing to show.</div>`;
   // The guide line on the left collapses this thread from anywhere inside it.
-  return `<button class="kl" data-act="thread" data-close data-id="${t.id}" aria-label="Collapse thread"></button>${branchHtml(t, 'r', depth, nest)}${branchHtml(t, 'q', depth, nest)}`;
+  return `<button class="kl" data-act="thread" data-close data-id="${t.id}" aria-label="Collapse thread"></button><div class="kc">${kids}${foot}</div>`;
 }
 
 function nodeHtml(postHtml: string, t: Tweet, depth: number, nest = depth): string {

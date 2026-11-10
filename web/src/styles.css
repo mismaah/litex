@@ -399,7 +399,7 @@ body.bars-hidden {
   padding-left: 62px;
 }
 /* Nesting already shows who a reply answers. */
-.kr > article.tw > .row > .bd > .rpl {
+.kc > article.tw > .row > .bd > .rpl {
   display: none;
 }
 .kqb {
