@@ -3,6 +3,7 @@ import type { User } from '../../shared/types';
 import { ApiError, get, post, setAuthLost } from './api';
 import { openCompose } from './compose';
 import { icon } from './icons';
+import { threadAction } from './feed/thread';
 import { playVideo } from './media/video';
 import { openSheet, openViewer } from './overlays';
 import { refreshActions, refreshText } from './render/tweet';
@@ -256,6 +257,8 @@ function onAction(act: string, el: HTMLElement) {
       return t && openCompose({ replyTo: t });
     case 'share':
       return t && share(t);
+    case 'thread':
+      return threadAction(el);
     case 'orig':
       if (!t) return;
       if (!showOriginal.delete(t.id)) showOriginal.add(t.id);

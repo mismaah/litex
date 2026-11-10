@@ -289,6 +289,86 @@ body.bars-hidden .top {
   top: -4px;
   height: 2px;
 }
+/* ---------- threads tab (Reddit-style nesting) ---------- */
+.tw:has(+ .thx) {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+.thx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 0 16px 8px 68px;
+  border-bottom: 1px solid var(--line);
+}
+.tb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+  color: var(--acc);
+  font-size: 14px;
+  font-weight: 600;
+}
+.tb .i {
+  width: 16px;
+  height: 16px;
+}
+.tb.on {
+  color: var(--mut);
+}
+.kids:empty {
+  display: none;
+}
+.kids {
+  margin-left: 18px;
+  border-left: 2px solid var(--line);
+}
+.kids .tw {
+  padding-left: 10px;
+}
+.kids .thx {
+  padding-left: 62px;
+}
+/* Nesting already shows who a reply answers. */
+.kr > article.tw > .row > .bd > .rpl {
+  display: none;
+}
+.kqb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 0 60px;
+  margin-bottom: -6px;
+  color: var(--mut);
+  font-size: 13px;
+  font-weight: 700;
+}
+.kqb .i {
+  width: 14px;
+  height: 14px;
+}
+.kmore {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 10px 10px 62px;
+  color: var(--acc);
+  border-bottom: 1px solid var(--line);
+}
+.kerr {
+  padding: 10px 10px 10px 62px;
+  color: var(--mut);
+  border-bottom: 1px solid var(--line);
+}
+.kerr button {
+  color: var(--acc);
+}
+.kids .spin {
+  width: 20px;
+  height: 20px;
+  margin: 12px auto;
+}
 .av {
   flex: none;
   border-radius: 50%;

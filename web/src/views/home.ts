@@ -1,6 +1,7 @@
 import type { Page } from '../../../shared/types';
 import { get } from '../api';
 import { Feed } from '../feed/feed';
+import { groupThreads, threadHtml } from '../feed/thread';
 import { icon } from '../icons';
 import { itemHtml } from '../render/cells';
 import type { View } from '../router';
@@ -9,6 +10,10 @@ import { esc, h } from '../util';
 import { TabFeeds, onTab, shell } from './base';
 
 const POLL_MS = 120_000;
+
+// The Threads tab shows For you posts, so it uses For you's X timeline and seen list.
+const xTab = (tab: string) => (tab === 'threads' ? 'foryou' : tab);
+const shape = (tab: string, page: Page) => (tab === 'threads' ? groupThreads(page) : page);
 
 export function homeView(): View {
   const avatar = () => {
@@ -22,6 +27,7 @@ export function homeView(): View {
     tabs: [
       ['foryou', 'For you'],
       ['following', 'Following'],
+      ['threads', 'Threads'],
     ],
     active: 'foryou',
     inlineTabs: true,
@@ -37,10 +43,10 @@ export function homeView(): View {
     s.body,
     (tab) =>
       new Feed({
-        load: (cursor) => get('/home', { tab, cursor, seen: seenParam(tab) }),
-        render: itemHtml,
+        load: async (cursor) => shape(tab, await get('/home', { tab: xTab(tab), cursor, seen: seenParam(xTab(tab)) })),
+        render: tab === 'threads' ? threadHtml : itemHtml,
         dedupe: true,
-        onSeen: (id) => markSeen(tab, id),
+        onSeen: (id) => markSeen(xTab(tab), id),
       }),
   );
   tf.select('foryou');
@@ -55,7 +61,7 @@ export function homeView(): View {
     if (!feed) return;
     try {
       // Explicit refreshes tell X it's a pull to refresh (x.com sends "ptr"); background polls stay "launch".
-      const page = await get('/home', { tab, seen: seenParam(tab), ctx: apply ? 'ptr' : undefined });
+      const page = shape(tab, await get('/home', { tab: xTab(tab), seen: seenParam(xTab(tab)), ctx: apply ? 'ptr' : undefined }));
       if (tab !== tf.cur) return;
       if (apply) {
         feed.prepend(page.items);
