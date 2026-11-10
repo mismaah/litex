@@ -290,6 +290,12 @@ body.bars-hidden .top {
   height: 2px;
 }
 /* ---------- threads tab (Reddit-style nesting) ---------- */
+:root {
+  --hdr: calc(var(--safe-t) + 54px); /* bottom of the sticky header */
+}
+body.bars-hidden {
+  --hdr: var(--safe-t);
+}
 .tw:has(+ .thx) {
   border-bottom: 0;
   padding-bottom: 2px;
@@ -300,6 +306,13 @@ body.bars-hidden .top {
   gap: 4px 16px;
   padding: 0 16px 8px 68px;
   border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+/* A feed post's bar (its collapse button) stays under the header while its children are on screen. */
+.th > .thx {
+  position: sticky;
+  top: var(--hdr);
+  z-index: 5;
 }
 .tb {
   display: inline-flex;
@@ -317,12 +330,67 @@ body.bars-hidden .top {
 .tb.on {
   color: var(--mut);
 }
+/* Compact copy of the post, shown in the sticky bar once the post itself is off screen. */
+.thp {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.th.stuck .thp {
+  display: flex;
+}
+.thp > img {
+  flex: none;
+  border-radius: 50%;
+  background: var(--ph);
+}
+.thp .bd {
+  flex: 1;
+  min-width: 0;
+}
+.thp .hd {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thp .tx {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.thp .tb {
+  flex: none;
+}
 .kids:empty {
   display: none;
 }
 .kids {
+  position: relative;
   margin-left: 18px;
   border-left: 2px solid var(--line);
+}
+/* Tapping the guide line collapses the thread it belongs to. */
+.kl {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -13px;
+  width: 24px;
+  z-index: 1;
+}
+.kids:has(> .kl:hover),
+.kids:has(> .kl:active) {
+  border-left-color: var(--mut);
 }
 .kids .tw {
   padding-left: 10px;

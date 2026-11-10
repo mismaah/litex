@@ -1,7 +1,7 @@
 import type { Page } from '../../../shared/types';
 import { get } from '../api';
 import { Feed } from '../feed/feed';
-import { groupThreads, threadHtml } from '../feed/thread';
+import { groupThreads, mountThreads, threadHtml, unmountThreads } from '../feed/thread';
 import { icon } from '../icons';
 import { itemHtml } from '../render/cells';
 import type { View } from '../router';
@@ -47,6 +47,7 @@ export function homeView(): View {
         render: tab === 'threads' ? threadHtml : itemHtml,
         dedupe: true,
         onSeen: (id) => markSeen(xTab(tab), id),
+        ...(tab === 'threads' ? { onMount: mountThreads, onUnmount: unmountThreads } : {}),
       }),
   );
   tf.select('foryou');

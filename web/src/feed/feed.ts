@@ -27,6 +27,9 @@ export interface FeedOpts {
   onPage?(page: Page, first: boolean): void;
   /** Called once per post when at least half of it has been on screen. */
   onSeen?(id: string): void;
+  /** Called after a chunk's posts are rendered, and before they are removed. */
+  onMount?(el: HTMLElement): void;
+  onUnmount?(el: HTMLElement): void;
 }
 
 export class Feed {
@@ -196,10 +199,12 @@ export class Feed {
     ch.live = true;
     mountMedia(ch.el);
     this.watch(ch.el);
+    this.o.onMount?.(ch.el);
   }
 
   private posts(el: Element) {
-    return el.querySelectorAll(':scope > article[data-tid]');
+    // Threaded feeds wrap each top-level post in `.th`.
+    return el.querySelectorAll(':scope > article[data-tid], :scope > .th > article[data-tid]');
   }
 
   private watch(el: Element) {
@@ -222,6 +227,7 @@ export class Feed {
         if (ch.live && e.boundingClientRect.height > 0) {
           unmountMedia(ch.el);
           this.unwatch(ch.el);
+          this.o.onUnmount?.(ch.el);
           ch.el.style.height = e.boundingClientRect.height + 'px';
           ch.el.textContent = '';
           ch.live = false;
@@ -274,7 +280,7 @@ export class Feed {
   }
 
   reset() {
-    for (const ch of this.chunks) unmountMedia(ch.el);
+    for (const ch of this.chunks) this.unmount(ch);
     this.io.disconnect();
     this.seenIo?.disconnect();
     this.queue.clear();
@@ -291,7 +297,7 @@ export class Feed {
 
   destroy() {
     this.pause();
-    for (const ch of this.chunks) unmountMedia(ch.el);
+    for (const ch of this.chunks) this.unmount(ch);
     this.el.remove();
   }
 
@@ -299,7 +305,7 @@ export class Feed {
   rerender() {
     for (const ch of this.chunks)
       if (ch.live && ch.items) {
-        unmountMedia(ch.el);
+        this.unmount(ch);
         ch.live = false;
         this.hydrate(ch);
       }
@@ -312,10 +318,16 @@ export class Feed {
       const before = ch.items.length;
       ch.items = ch.items.filter((it) => !fn(it));
       if (ch.items.length !== before && ch.live) {
+        this.unmount(ch);
         ch.live = false;
         this.hydrate(ch);
       }
     }
+  }
+
+  private unmount(ch: Chunk) {
+    unmountMedia(ch.el);
+    if (ch.live) this.o.onUnmount?.(ch.el);
   }
 
   domNodes() {
