@@ -15,7 +15,7 @@ import { homeView } from './views/home';
 import { followsView, profileView } from './views/profile';
 import { bookmarksFeed, bookmarksView, listView, listsView, notificationsView } from './views/simple';
 import { quotesView, tweetView } from './views/tweet';
-import { shell } from './views/base';
+import { markNavBusy, shell } from './views/base';
 
 // ---------- theme ----------
 function applyTheme(t: Theme) {
@@ -60,6 +60,7 @@ function renderNav() {
 <a href="/notifications" data-tab="notifications" aria-label="Notifications">${icon('bell')}<span class="nl">Notifications</span></a>
 <a href="/bookmarks" data-tab="bookmarks" aria-label="Bookmarks">${icon('bookmark')}<span class="nl">Bookmarks</span></a>
 <a href="${u ? '/' + esc(u.sn) : '#'}" data-tab="me" aria-label="Profile">${u ? `<img src="${esc(u.avatar)}" alt="" width="26" height="26">` : icon('user')}<span class="nl">Profile</span></a>`;
+  markNavBusy();
 }
 function markNav(v: View) {
   for (const a of nav.querySelectorAll<HTMLElement>('[data-tab]')) a.classList.toggle('on', a.dataset.tab === v.tab);

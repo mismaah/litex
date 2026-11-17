@@ -169,6 +169,11 @@ export class Feed {
     this.trim();
   }
 
+  /** Items not already in this feed (doesn't mark them). */
+  unseen(items: Item[]) {
+    return items.filter((it) => !this.seen.has(it.type === 'tweet' ? 't' + it.tweet.id : it.k));
+  }
+
   /** Insert newer items at the top (pull-to-refresh / new posts). */
   prepend(items: Item[]) {
     const fresh = this.filter(items);

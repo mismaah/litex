@@ -6,8 +6,8 @@ import { icon } from '../icons';
 import { itemHtml } from '../render/cells';
 import type { View } from '../router';
 import { markSeen, me, seenParam } from '../store';
-import { esc, h } from '../util';
-import { TabFeeds, onTab, shell } from './base';
+import { esc, h, toast } from '../util';
+import { TabFeeds, onTab, setNavBusy, shell } from './base';
 
 const POLL_MS = 120_000;
 
@@ -38,7 +38,13 @@ export function homeView(): View {
   s.el.append(pill);
   s.body.append(ptr);
 
-  const pending = new Map<string, Page>();
+  // Tabs where a background check found new posts; the pill only says they exist (avatars).
+  const pending = new Map<string, string[]>();
+  const showPill = () => {
+    const avatars = pending.get(tf.cur);
+    pill.hidden = !avatars;
+    if (avatars) pill.innerHTML = `${icon('up')}${avatars.map((a) => `<img src="${esc(a)}" alt="">`).join('')}<span>New posts</span>`;
+  };
   const tf = new TabFeeds(
     s.body,
     (tab) =>
@@ -51,44 +57,53 @@ export function homeView(): View {
       }),
   );
   tf.select('foryou');
-  onTab(s.tabs!, (tab) => {
-    pill.hidden = true;
+  onTab(s.tabs!, (tab, same) => {
+    if (same) return void refresh();
     tf.select(tab);
+    showPill();
   });
 
-  async function checkNew(apply: boolean) {
+  // The feed never changes on its own: only user actions call refresh().
+  let inflight = false;
+  async function refresh() {
     const tab = tf.cur;
     const feed = tf.feed;
-    if (!feed) return;
+    scrollTo({ top: 0 });
+    if (!feed || inflight) return;
+    inflight = true;
+    pending.delete(tab);
+    showPill();
+    setNavBusy('home', true);
     try {
-      // Explicit refreshes tell X it's a pull to refresh (x.com sends "ptr"); background polls stay "launch".
-      const page = shape(tab, await get('/home', { tab: xTab(tab), seen: seenParam(xTab(tab)), ctx: apply ? 'ptr' : undefined }));
-      if (tab !== tf.cur) return;
-      if (apply) {
-        feed.prepend(page.items);
-        pill.hidden = true;
-      } else {
-        pending.set(tab, page);
-        const fresh = page.items.filter((i) => i.type === 'tweet').slice(0, 3);
-        if (fresh.length && scrollY > 400) {
-          pill.innerHTML = `${icon('up')}${fresh.map((i) => (i.type === 'tweet' ? `<img src="${esc(i.tweet.user.avatar)}" alt="">` : '')).join('')}<span>New posts</span>`;
-          pill.hidden = false;
-        } else if (scrollY <= 400) {
-          feed.prepend(page.items);
-        }
-      }
+      // Explicit refreshes tell X it's a pull to refresh (x.com sends "ptr").
+      const page = shape(tab, await get('/home', { tab: xTab(tab), seen: seenParam(xTab(tab)), ctx: 'ptr' }));
+      feed.prepend(page.items);
+    } catch {
+      toast("Couldn't refresh.");
+    } finally {
+      inflight = false;
+      setNavBusy('home', false);
+    }
+  }
+
+  /** Background check: only shows the "New posts" pill, never touches the feed. */
+  async function peek() {
+    const tab = tf.cur;
+    const feed = tf.feed;
+    if (!feed || inflight) return;
+    try {
+      const page = shape(tab, await get('/home', { tab: xTab(tab), seen: seenParam(xTab(tab)) }));
+      if (inflight) return;
+      const fresh = feed.unseen(page.items).filter((i) => i.type === 'tweet');
+      if (!fresh.length) return;
+      pending.set(tab, fresh.slice(0, 3).map((i) => (i.type === 'tweet' ? i.tweet.user.avatar : '')));
+      if (tab === tf.cur) showPill();
     } catch {
       /* silent: background check */
     }
   }
 
-  pill.addEventListener('click', () => {
-    const page = pending.get(tf.cur);
-    if (page) tf.feed?.prepend(page.items);
-    pending.delete(tf.cur);
-    pill.hidden = true;
-    scrollTo({ top: 0 });
-  });
+  pill.addEventListener('click', () => void refresh());
 
   // Pull to refresh (native one is disabled via overscroll-behavior).
   let y0 = -1;
@@ -116,7 +131,7 @@ export function homeView(): View {
     y0 = -1;
     if (dy > 70) {
       ptr.classList.add('busy');
-      await checkNew(true);
+      await refresh();
       ptr.classList.remove('busy');
     }
     ptr.style.transform = '';
@@ -126,7 +141,7 @@ export function homeView(): View {
   let timer = 0;
   const poll = () => {
     clearInterval(timer);
-    timer = window.setInterval(() => document.visibilityState === 'visible' && checkNew(false), POLL_MS);
+    timer = window.setInterval(() => document.visibilityState === 'visible' && peek(), POLL_MS);
   };
 
   return {
@@ -144,8 +159,7 @@ export function homeView(): View {
       clearInterval(timer);
     },
     reselect() {
-      if (scrollY > 0) scrollTo({ top: 0 });
-      else checkNew(true);
+      void refresh();
     },
   };
 }
