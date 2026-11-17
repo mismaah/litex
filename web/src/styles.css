@@ -1425,6 +1425,22 @@ body.bars-hidden #fab {
   max-height: 100%;
   object-fit: contain;
 }
+/* Zoom is a transform from the top-left corner, see openViewer(). */
+.vslide img {
+  transform-origin: 0 0;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* While a photo is zoomed, gestures pan it instead of scrolling between slides. */
+.viewer.zoomed {
+  touch-action: none;
+}
+.viewer.zoomed .vtrack {
+  overflow-x: hidden;
+}
+.viewer.zoomed .vslide img {
+  cursor: grab;
+}
 .vclose {
   position: absolute;
   top: calc(8px + var(--safe-t));
