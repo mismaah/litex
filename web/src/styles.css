@@ -1358,6 +1358,17 @@ body.bars-hidden .pill {
 #nav a.on .i {
   stroke-width: 2.6;
 }
+/* Feed refreshing: the icon turns into a spinner ring (same look as .spin). */
+#nav a.refreshing .i {
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid var(--acc-t);
+  border-top-color: var(--acc);
+  animation: spin 0.7s linear infinite;
+}
+#nav a.refreshing .i > * {
+  display: none;
+}
 #nav img {
   width: 28px;
   height: 28px;

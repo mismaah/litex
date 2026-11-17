@@ -46,14 +46,30 @@ export function setTabs(nav: HTMLElement, tabs: [string, string][], active: stri
   nav.innerHTML = tabs.map(([id, label]) => `<button data-tab="${id}" class="${id === active ? 'on' : ''}"><span>${esc(label)}</span></button>`).join('');
 }
 
-export function onTab(nav: HTMLElement, fn: (id: string) => void) {
+/** `same` is true when the already active tab was tapped again. */
+export function onTab(nav: HTMLElement, fn: (id: string, same: boolean) => void) {
   nav.addEventListener('click', (e) => {
     const b = (e.target as Element).closest<HTMLElement>('[data-tab]');
     if (!b) return;
+    const same = b.classList.contains('on');
     for (const x of nav.querySelectorAll('.on')) x.classList.remove('on');
     b.classList.add('on');
-    fn(b.dataset.tab!);
+    fn(b.dataset.tab!, same);
   });
+}
+
+// Bottom-nav tabs showing a loader (e.g. Home while its feed refreshes). Kept here so it
+// survives the nav being re-rendered.
+const busyTabs = new Set<string>();
+
+export function setNavBusy(tab: string, on: boolean) {
+  if (on) busyTabs.add(tab);
+  else busyTabs.delete(tab);
+  markNavBusy();
+}
+
+export function markNavBusy() {
+  for (const a of document.querySelectorAll<HTMLElement>('#nav [data-tab]')) a.classList.toggle('refreshing', busyTabs.has(a.dataset.tab!));
 }
 
 /** Several feeds behind tabs, each remembering its own scroll position. */
