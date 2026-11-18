@@ -1,6 +1,7 @@
 // Media viewer and bottom sheets. Both close with Back.
 import type { Tweet } from '../../shared/types';
 import { icon } from './icons';
+import { useSavedVolume } from './media/video';
 import { img } from './render/media';
 import { closeOverlay, pushOverlay } from './router';
 import { esc, h } from './util';
@@ -27,6 +28,7 @@ export function openViewer(t: Tweet, index: number) {
     .join('')}</div>${
     many ? `<button class="ib vnav vprev" aria-label="Previous">${icon('back')}</button><button class="ib vnav vnext" aria-label="Next">${icon('back')}</button>` : ''
   }`;
+  for (const v of el.querySelectorAll('video')) if (!v.loop) useSavedVolume(v);
   document.body.append(el);
   lockScroll(true);
   const track = el.querySelector<HTMLElement>('.vtrack')!;

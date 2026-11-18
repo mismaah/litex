@@ -61,6 +61,9 @@ export const prefs = {
   theme: getPref<Theme>('theme', 'system'),
   gifs: getPref('gifs', true),
   hq: getPref('hq', false),
+  /** Last video volume (0–1) and mute state the user picked; every video starts with them. */
+  volume: getPref('volume', 1),
+  muted: getPref('muted', false),
 };
 export function savePref<K extends keyof typeof prefs>(k: K, v: (typeof prefs)[K]) {
   prefs[k] = v;
