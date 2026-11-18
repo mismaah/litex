@@ -2,7 +2,7 @@
 // GIFs only play while on screen, and every <video> is unloaded when it leaves the DOM.
 import type { Media } from '../../../shared/types';
 import { get } from '../api';
-import { intern, tweets } from '../store';
+import { intern, prefs, savePref, tweets } from '../store';
 import { toast } from '../util';
 
 let active: HTMLVideoElement | null = null;
@@ -32,6 +32,20 @@ const gifIo = new IntersectionObserver(
   },
   { threshold: 0.5 },
 );
+
+/**
+ * Start a video at the user's last volume / mute state, and remember any change they make to it.
+ * Muted GIF loops are left alone. Some browsers (iOS) don't let pages set the volume; that's harmless.
+ */
+export function useSavedVolume(v: HTMLVideoElement) {
+  const vol = prefs.volume;
+  if (Number.isFinite(vol)) v.volume = Math.min(1, Math.max(0, vol));
+  v.muted = prefs.muted;
+  v.addEventListener('volumechange', () => {
+    if (v.volume !== prefs.volume) savePref('volume', v.volume);
+    if (v.muted !== prefs.muted) savePref('muted', v.muted);
+  });
+}
 
 const playIo = new IntersectionObserver(
   (entries) => {
@@ -103,6 +117,7 @@ function start(cell: HTMLElement, m: Media) {
   v.className = 'pv';
   Object.assign(v, { controls: true, playsInline: true, autoplay: true, src: m.src, loop: m.type === 'gif' });
   v.setAttribute('playsinline', '');
+  useSavedVolume(v);
   v.poster = (cell.querySelector('img') as HTMLImageElement | null)?.src || '';
   wrap.append(v);
   posters.set(v, cell);
